@@ -1,5 +1,5 @@
 streamlit
-docx
-pptx
+python-docx
+python-pptx
 io
 base64
