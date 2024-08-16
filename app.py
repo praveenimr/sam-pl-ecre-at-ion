@@ -19,21 +19,19 @@ company_options = ['COMPANYA', 'COMPANYB', 'COMPANYC', 'COMPANYD', 'COMPANYE', '
 def replace_text_case_insensitive(paragraphs, find_str, replace_str, font_name="Segoe UI"):
     find_str_lower = find_str.lower()
     for para in paragraphs:
-        text = para.text
-        text_lower = text.lower()
-        start = 0
-        while True:
-            start = text_lower.find(find_str_lower, start)
-            if start == -1:
-                break
-            end = start + len(find_str)
-            para.text = para.text[:start] + replace_str + para.text[end:]
-            for run in para.runs:
-                if run.text == replace_str:
-                    run.font.name = font_name
-            text = para.text
-            text_lower = text.lower()
-            start = end
+        full_text = "".join([run.text for run in para.runs])
+        full_text_lower = full_text.lower()
+        
+        if find_str_lower in full_text_lower:
+            # Perform the replacement in the combined text
+            full_text_replaced = full_text_lower.replace(find_str_lower, replace_str)
+            
+            # Clear existing runs
+            para.clear()
+
+            # Create a new run with the replaced text and set the font
+            run = para.add_run(full_text_replaced)
+            run.font.name = font_name
 
 def replace_text_in_pptx(slides, find_str, replace_str, font_name="Segoe UI"):
     find_str_lower = find_str.lower()
@@ -131,7 +129,7 @@ def main():
                 
                 elif filename.endswith('.pptx'):
                     ppt = Presentation(file_content)
-                    replace_ppt_in_pptx(ppt, find_replace_pairs)
+                    replace_text_in_pptx(ppt, find_replace_pairs)
                     output_buffer = io.BytesIO()
                     ppt.save(output_buffer)
                     output_buffer.seek(0)
