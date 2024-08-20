@@ -6,6 +6,7 @@ import base64
 
 segment_options_ordered = ['SEGMENTTA', 'SEGMENTTB', 'SEGMENTTC', 'SEGMENTTD', 'SEGMENTTE', 'SEGMENTTF']
 # Options for segments and their subsegments
+
 segment_options = {
     'SEGMENTTA': ['SEGMENTTA','SUBSEGA1', 'SUBSEGA2', 'SUBSEGA3', 'SUBSEGA4', 'SUBSEGA5', 'SUBSEGA6'],
     'SEGMENTTB': ['SEGMENTTB','SUBSEGB1', 'SUBSEGB2', 'SUBSEGB3', 'SUBSEGB4', 'SUBSEGB5', 'SUBSEGB6'],
