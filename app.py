@@ -1,10 +1,10 @@
 import streamlit as st
 from docx import Document
 from pptx import Presentation
-from pptx.util import Pt
 import io
 import base64
 
+segment_options_ordered = ['SEGMENTTA', 'SEGMENTTB', 'SEGMENTTC', 'SEGMENTTD', 'SEGMENTTE', 'SEGMENTTF']
 # Options for segments and their subsegments
 segment_options = {
     'SEGMENTTA': ['SEGMENTTA','SUBSEGA1', 'SUBSEGA2', 'SUBSEGA3', 'SUBSEGA4', 'SUBSEGA5', 'SUBSEGA6'],
@@ -16,25 +16,47 @@ segment_options = {
 }
 company_options = ['COMPANYA', 'COMPANYB', 'COMPANYC', 'COMPANYD', 'COMPANYE', 'COMPANYF', 'COMPANYG', 'COMPANYH', 'COMPANYI', 'COMPANYJ', 'COMPANYK', 'COMPANYL', 'COMPANYM', 'COMPANYN', 'COMPANYO', 'COMPANYP', 'COMPANYQ', 'COMPANYR', 'COMPANYS', 'COMPANYT']
 
-def replace_text_case_insensitive(paragraphs, find_str, replace_str, font_name="Segoe UI"):
+def get_segments_up_to(selected_segment):
+    """Returns a list of all segments up to the selected segment."""
+    selected_index = segment_options_ordered.index(selected_segment)
+    return segment_options_ordered[:selected_index + 1]
+
+def replace_text_case_insensitive(paragraphs, find_str, replace_str):
     find_str_lower = find_str.lower()
+    
     for para in paragraphs:
-        full_text = "".join([run.text for run in para.runs])
-        full_text_lower = full_text.lower()
+        # Combine all runs in a paragraph into a single string
+        combined_text = "".join(run.text for run in para.runs)
+        combined_text_lower = combined_text.lower()
         
-        if find_str_lower in full_text_lower:
-            # Perform the replacement in the combined text
-            full_text_replaced = full_text_lower.replace(find_str_lower, replace_str)
-            
-            # Clear existing runs
-            para.clear()
+        # Check if the text to find is in the combined text
+        if find_str_lower in combined_text_lower:
+            start = 0
+            while True:
+                start = combined_text_lower.find(find_str_lower, start)
+                if start == -1:
+                    break
+                end = start + len(find_str)
+                
+                # Replace text across runs
+                new_text = combined_text[:start] + replace_str + combined_text[end:]
+                combined_text = new_text
+                combined_text_lower = new_text.lower()
+                
+                # Update runs with new text
+                runs = para.runs
+                para.clear()  # Clear the existing runs
+                
+                # Split new text into runs to maintain formatting
+                for part in combined_text.splitlines(True):
+                    run = para.add_run(part)
+                    run.font.name = "Segoe UI"
+                
+                start = end
 
-            # Create a new run with the replaced text and set the font
-            run = para.add_run(full_text_replaced)
-            run.font.name = font_name
-
-def replace_text_in_pptx(slides, find_str, replace_str, font_name="Segoe UI"):
+def replace_text_in_pptx(slides, find_str, replace_str):
     find_str_lower = find_str.lower()
+    
     for slide in slides:
         for shape in slide.shapes:
             if not shape.has_text_frame:
@@ -48,11 +70,9 @@ def replace_text_in_pptx(slides, find_str, replace_str, font_name="Segoe UI"):
                     if start == -1:
                         break
                     end = start + len(find_str)
-                    paragraph.text = paragraph.text[:start] + replace_str + paragraph.text[end:]
-                    for run in paragraph.runs:
-                        if run.text == replace_str:
-                            run.font.name = font_name
-                    text = paragraph.text
+                    new_text = text[:start] + replace_str + text[end:]
+                    paragraph.text = new_text
+                    text = new_text
                     text_lower = text.lower()
                     start = end
 
@@ -65,7 +85,7 @@ def replace_word_in_docx(doc, find_replace_pairs):
         for table in doc.tables:
             for row in table.rows:
                 for cell in row.cells:
-                    replace_text_case_insensitive(cell.paragraphs, find_str, replace_str)  # Iterate over paragraphs within the cell
+                    replace_text_case_insensitive(cell.paragraphs, find_str, replace_str)
                     
         # Replace in headers and footers
         for section in doc.sections:
@@ -74,34 +94,37 @@ def replace_word_in_docx(doc, find_replace_pairs):
 
 
 def main():
-    st.title("Sample Creation")
+    st.title("Document Text Replacer")
     
     st.sidebar.header("Upload File")
-    uploaded_file = st.sidebar.file_uploader("Upload a .docx or .pptx file", type=["docx", "pptx"])
+    uploaded_file = st.sidebar.file_uploader("Upload a File", type=["docx", "pptx"])
     
     st.sidebar.header("Find and Replace")
     user_find = st.sidebar.text_input("Find:")
     user_replace = st.sidebar.text_input("Replace with:")
     
     st.sidebar.header("Select Segments")
-    selected_segments = st.sidebar.multiselect("Select segments to replace", options=list(segment_options.keys()))
+    selected_segment = st.sidebar.selectbox("Select a segment", options=segment_options_ordered)
     
-    # st.header("Replacements")
+    if selected_segment:
+        selected_segments = get_segments_up_to(selected_segment)
+        st.sidebar.write(f"Selected Segments: {', '.join(selected_segments)}")
     
-    segment_replace_inputs = {}
-    for segment in selected_segments:
-        st.subheader(segment)
-        segment_replace_inputs[segment] = {}
-        for subsegment in segment_options[segment]:
-            segment_replace_inputs[segment][subsegment] = st.text_input(f"Replace {subsegment} with:", key=f"{segment}_{subsegment}")
+    with st.expander("Segment Replacements"):
+        segment_replace_inputs = {}
+        for segment in selected_segments:
+            st.subheader(segment)
+            segment_replace_inputs[segment] = {}
+            for subsegment in segment_options[segment]:
+                segment_replace_inputs[segment][subsegment] = st.text_input(f"Replace {subsegment} with:", key=f"{segment}_{subsegment}")
     
-    st.subheader("KEY-COMPANY Replacements")
-    company_replace_inputs = {value: st.text_input(f"Replace {value} with:", key=f"COMPANY_{value}") for value in company_options}
+    with st.expander("Company Replacements"):
+        company_replace_inputs = {value: st.text_input(f"Replace {value} with:", key=f"COMPANY_{value}") for value in company_options}
     
     st.sidebar.header("Download Options")
-    custom_filename = st.sidebar.text_input("Enter Filename:",)
+    custom_filename = st.sidebar.text_input("Enter Filename:", "")
     
-    if st.button("Replace Text"):
+    if st.button("Update File"):
         if uploaded_file:
             try:
                 file_content = io.BytesIO(uploaded_file.getvalue())
@@ -124,7 +147,7 @@ def main():
                     output_buffer.seek(0)
                     
                     b64 = base64.b64encode(output_buffer.read()).decode()
-                    href = f'<a download="{custom_filename}.docx" href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" target="_blank">Download Modified Document</a>'
+                    href = f'<a download="{custom_filename if custom_filename else "modified_document"}.docx" href="data:application/vnd.openxmlformats-officedocument.wordprocessingml.document;base64,{b64}" target="_blank">Download Updated Word File</a>'
                     st.markdown(href, unsafe_allow_html=True)
                 
                 elif filename.endswith('.pptx'):
@@ -135,13 +158,14 @@ def main():
                     output_buffer.seek(0)
                     
                     b64 = base64.b64encode(output_buffer.read()).decode()
-                    href = f'<a download="{custom_filename}.pptx" href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64}" target="_blank">Download Modified Presentation</a>'
+                    href = f'<a download="{custom_filename if custom_filename else "modified_presentation"}.pptx" href="data:application/vnd.openxmlformats-officedocument.presentationml.presentation;base64,{b64}" target="_blank">Download Updated PPT File</a>'
                     st.markdown(href, unsafe_allow_html=True)
                 
             except Exception as e:
                 st.error(f"An error occurred: {e}")
         else:
-            st.error("Please upload a .docx or .pptx file.")
+            st.error("Upload a File.")
             
 if __name__ == "__main__":
     main()
+
