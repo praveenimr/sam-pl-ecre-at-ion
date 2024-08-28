@@ -7,7 +7,7 @@ import streamlit as st
 #   visibility: hidden;
 # }
 # """
-st.markdown(hide_github_icon, unsafe_allow_html=True)
+# st.markdown(hide_github_icon, unsafe_allow_html=True)
 from docx import Document
 from pptx import Presentation
 import io
