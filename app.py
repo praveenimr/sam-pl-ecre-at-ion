@@ -7,7 +7,7 @@ import base64
 # Fetch password from Streamlit secrets
 PASSWORD = "imr solution"
 
-# Password input
+# Password input 
 password = st.sidebar.text_input("Password", type="password")
 
 # Check password
