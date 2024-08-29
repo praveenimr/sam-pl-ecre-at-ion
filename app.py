@@ -5,7 +5,7 @@ import io
 import base64
 
 # Set the password (you can change this to whatever you like)
-PASSWORD = "satish"
+PASSWORD = "staish"
 
 # Password input
 def check_password():
@@ -93,6 +93,8 @@ def main():
                     st.error(f"An error occurred: {e}")
             else:
                 st.error("Upload a File.")
+    else:
+        st.warning("Please enter the correct password to access the application.")
 
 if __name__ == "__main__":
     main()
