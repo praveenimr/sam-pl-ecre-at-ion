@@ -1,36 +1,109 @@
 import streamlit as st
+
+
+# # Add custom CSS to hide the GitHub icon
+# hide_github_icon = """
+# #GithubIcon {
+#   visibility: hidden;
+# }
+# """
+# st.markdown(hide_github_icon, unsafe_allow_html=True)
 from docx import Document
 from pptx import Presentation
 import io
 import base64
 
-# Define a password
-PASSWORD = "satish"
+segment_options_ordered = ['SEGMENTTA', 'SEGMENTTB', 'SEGMENTTC', 'SEGMENTTD', 'SEGMENTTE', 'SEGMENTTF']
+# Options for segments and their subsegments
 
-# Prompt the user for the password
-def check_password():
-    def password_entered():
-        if st.session_state["password"] == PASSWORD:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # remove the password from the state
-        else:
-            st.session_state["password_correct"] = False
+segment_options = {
+    'SEGMENTTA': ['SEGMENTTA','SUBSEGA1', 'SUBSEGA2', 'SUBSEGA3', 'SUBSEGA4', 'SUBSEGA5', 'SUBSEGA6'],
+    'SEGMENTTB': ['SEGMENTTB','SUBSEGB1', 'SUBSEGB2', 'SUBSEGB3', 'SUBSEGB4', 'SUBSEGB5', 'SUBSEGB6'],
+    'SEGMENTTC': ['SEGMENTTC','SUBSEGC1', 'SUBSEGC2', 'SUBSEGC3', 'SUBSEGC4', 'SUBSEGC5', 'SUBSEGC6'],
+    'SEGMENTTD': ['SEGMENTTD','SUBSEGD1', 'SUBSEGD2', 'SUBSEGD3', 'SUBSEGD4', 'SUBSEGD5', 'SUBSEGD6'],
+    'SEGMENTTE': ['SEGMENTTE','SUBSEGE1', 'SUBSEGE2', 'SUBSEGE3', 'SUBSEGE4', 'SUBSEGE5', 'SUBSEGE6'],
+    'SEGMENTTF': ['SEGMENTTF','SUBSEGF1', 'SUBSEGF2', 'SUBSEGF3', 'SUBSEGF4', 'SUBSEGF5', 'SUBSEGF6'],
+}
+company_options = ['COMPANYA', 'COMPANYB', 'COMPANYC', 'COMPANYD', 'COMPANYE', 'COMPANYF', 'COMPANYG', 'COMPANYH', 'COMPANYI', 'COMPANYJ', 'COMPANYK', 'COMPANYL', 'COMPANYM', 'COMPANYN', 'COMPANYO', 'COMPANYP', 'COMPANYQ', 'COMPANYR', 'COMPANYS', 'COMPANYT']
 
-    if "password_correct" not in st.session_state:
-        # First run, show input for password
-        st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        # Password not correct, show input + error
-        st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
-        st.error("😕 Password incorrect")
-        return False
-    else:
-        # Password correct
-        return True
+def get_segments_up_to(selected_segment):
+    """Returns a list of all segments up to the selected segment."""
+    selected_index = segment_options_ordered.index(selected_segment)
+    return segment_options_ordered[:selected_index + 1]
 
-if check_password():
-    # Your Streamlit app code goes here
+def replace_text_case_insensitive(paragraphs, find_str, replace_str):
+    find_str_lower = find_str.lower()
+    
+    for para in paragraphs:
+        # Combine all runs in a paragraph into a single string
+        combined_text = "".join(run.text for run in para.runs)
+        combined_text_lower = combined_text.lower()
+        
+        # Check if the text to find is in the combined text
+        if find_str_lower in combined_text_lower:
+            start = 0
+            while True:
+                start = combined_text_lower.find(find_str_lower, start)
+                if start == -1:
+                    break
+                end = start + len(find_str)
+                
+                # Replace text across runs
+                new_text = combined_text[:start] + replace_str + combined_text[end:]
+                combined_text = new_text
+                combined_text_lower = new_text.lower()
+                
+                # Update runs with new text
+                runs = para.runs
+                para.clear()  # Clear the existing runs
+                
+                # Split new text into runs to maintain formatting
+                for part in combined_text.splitlines(True):
+                    run = para.add_run(part)
+                    run.font.name = "Segoe UI"
+                
+                start = end
+
+def replace_text_in_pptx(slides, find_str, replace_str):
+    find_str_lower = find_str.lower()
+    
+    for slide in slides:
+        for shape in slide.shapes:
+            if not shape.has_text_frame:
+                continue
+            for paragraph in shape.text_frame.paragraphs:
+                text = paragraph.text
+                text_lower = text.lower()
+                start = 0
+                while True:
+                    start = text_lower.find(find_str_lower, start)
+                    if start == -1:
+                        break
+                    end = start + len(find_str)
+                    new_text = text[:start] + replace_str + text[end:]
+                    paragraph.text = new_text
+                    text = new_text
+                    text_lower = text.lower()
+                    start = end
+
+def replace_word_in_docx(doc, find_replace_pairs):
+    for find_str, replace_str in find_replace_pairs:
+        # Replace in regular paragraphs
+        replace_text_case_insensitive(doc.paragraphs, find_str, replace_str)
+        
+        # Replace in table cells
+        for table in doc.tables:
+            for row in table.rows:
+                for cell in row.cells:
+                    replace_text_case_insensitive(cell.paragraphs, find_str, replace_str)
+                    
+        # Replace in headers and footers
+        for section in doc.sections:
+            replace_text_case_insensitive(section.header.paragraphs, find_str, replace_str)
+            replace_text_case_insensitive(section.footer.paragraphs, find_str, replace_str)
+
+
+def main():
     st.title("Document Text Replacer")
     
     st.sidebar.header("Upload File")
@@ -102,3 +175,6 @@ if check_password():
                 st.error(f"An error occurred: {e}")
         else:
             st.error("Upload a File.")
+            
+if __name__ == "__main__":
+    main()
