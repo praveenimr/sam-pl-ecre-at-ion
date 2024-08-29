@@ -10,7 +10,7 @@ PASSWORD = "imr solution"
 
 # Password input
 password = st.sidebar.text_input("Password", type="password")
-
+ 
 # Check password
 if password == PASSWORD:
     st.title("Document Text Replacer")
