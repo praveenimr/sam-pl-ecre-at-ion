@@ -5,9 +5,10 @@ import io
 import base64
 
 # Fetch password from Streamlit secrets
+# PASSWORD = st.secrets["general"]["password"]
 PASSWORD = "imr solution"
 
-# Password input 
+# Password input
 password = st.sidebar.text_input("Password", type="password")
 
 # Check password
@@ -172,4 +173,4 @@ if password == PASSWORD:
         else:
             st.error("Upload a File.")
 else:
-    st.warning("Please enter the correct password.")
+    st.warning("Please enter the password.")
