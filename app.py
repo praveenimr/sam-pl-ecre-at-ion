@@ -5,12 +5,11 @@ import io
 import base64
 
 # Fetch password from Streamlit secrets
-# PASSWORD = st.secrets["general"]["password"]
 PASSWORD = "imr solution"
 
 # Password input
 password = st.sidebar.text_input("Password", type="password")
- 
+
 # Check password
 if password == PASSWORD:
     st.title("Document Text Replacer")
@@ -32,76 +31,59 @@ if password == PASSWORD:
         selected_index = segment_options_ordered.index(selected_segment)
         return segment_options_ordered[:selected_index + 1]
 
-    def replace_text_case_insensitive(paragraphs, find_str, replace_str):
-        find_str_lower = find_str.lower()
-        
+    def replace_text_case_sensitive(paragraphs, find_str, replace_str):
+        """Replace occurrences of find_str with replace_str in a case-sensitive manner within paragraphs."""
         for para in paragraphs:
             # Combine all runs in a paragraph into a single string
             combined_text = "".join(run.text for run in para.runs)
-            combined_text_lower = combined_text.lower()
-            
-            # Check if the text to find is in the combined text
-            if find_str_lower in combined_text_lower:
-                start = 0
-                while True:
-                    start = combined_text_lower.find(find_str_lower, start)
-                    if start == -1:
-                        break
-                    end = start + len(find_str)
-                    
-                    # Replace text across runs
-                    new_text = combined_text[:start] + replace_str + combined_text[end:]
-                    combined_text = new_text
-                    combined_text_lower = new_text.lower()
-                    
-                    # Update runs with new text
-                    runs = para.runs
-                    para.clear()  # Clear the existing runs
-                    
-                    # Split new text into runs to maintain formatting
-                    for part in combined_text.splitlines(True):
-                        run = para.add_run(part)
-                        run.font.name = "Segoe UI"
-                    
-                    start = end
 
-    def replace_text_in_pptx(slides, find_str, replace_str):
-        find_str_lower = find_str.lower()
-        
+            # Case-sensitive replacement
+            if find_str in combined_text:
+                # Replace the found text with the replacement string
+                combined_text = combined_text.replace(find_str, replace_str)
+
+                # Clear the existing runs
+                para.clear()
+
+                # Re-add the replaced text, preserving formatting
+                for part in combined_text.splitlines(True):
+                    run = para.add_run(part)
+                    run.font.name = "Segoe UI"
+
+    def replace_word_in_docx(doc, find_replace_pairs):
+        """
+        Perform find and replace in a Word document, maintaining case-sensitive replacements.
+        """
+        for find_str, replace_str in find_replace_pairs:
+            # Replace in regular paragraphs
+            replace_text_case_sensitive(doc.paragraphs, find_str, replace_str)
+            
+            # Replace in table cells
+            for table in doc.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        replace_text_case_sensitive(cell.paragraphs, find_str, replace_str)
+                        
+            # Replace in headers and footers
+            for section in doc.sections:
+                replace_text_case_sensitive(section.header.paragraphs, find_str, replace_str)
+                replace_text_case_sensitive(section.footer.paragraphs, find_str, replace_str)
+
+    def replace_text_in_pptx(slides, find_replace_pairs):
+        """
+        Perform a case-sensitive find and replace operation in PowerPoint slides.
+        Only exact case matches are replaced.
+        """
         for slide in slides:
             for shape in slide.shapes:
                 if not shape.has_text_frame:
                     continue
                 for paragraph in shape.text_frame.paragraphs:
                     text = paragraph.text
-                    text_lower = text.lower()
-                    start = 0
-                    while True:
-                        start = text_lower.find(find_str_lower, start)
-                        if start == -1:
-                            break
-                        end = start + len(find_str)
-                        new_text = text[:start] + replace_str + text[end:]
-                        paragraph.text = new_text
-                        text = new_text
-                        text_lower = new_text.lower()
-                        start = end
-
-    def replace_word_in_docx(doc, find_replace_pairs):
-        for find_str, replace_str in find_replace_pairs:
-            # Replace in regular paragraphs
-            replace_text_case_insensitive(doc.paragraphs, find_str, replace_str)
-            
-            # Replace in table cells
-            for table in doc.tables:
-                for row in table.rows:
-                    for cell in row.cells:
-                        replace_text_case_insensitive(cell.paragraphs, find_str, replace_str)
-                        
-            # Replace in headers and footers
-            for section in doc.sections:
-                replace_text_case_insensitive(section.header.paragraphs, find_str, replace_str)
-                replace_text_case_insensitive(section.footer.paragraphs, find_str, replace_str)
+                    for find_str, replace_str in find_replace_pairs:
+                        # Case-sensitive replacement
+                        if find_str in text:
+                            paragraph.text = text.replace(find_str, replace_str)
 
     st.sidebar.header("Upload File")
     uploaded_file = st.sidebar.file_uploader("Upload a File", type=["docx", "pptx"])
@@ -109,6 +91,10 @@ if password == PASSWORD:
     st.sidebar.header("Find and Replace")
     user_find = st.sidebar.text_input("Find:")
     user_replace = st.sidebar.text_input("Replace with:")
+    
+    st.sidebar.header("Second Find and Replace")
+    second_find = st.sidebar.text_input("Find (Second):")
+    second_replace = st.sidebar.text_input("Replace with (Second):")
     
     st.sidebar.header("Select Segments")
     selected_segment = st.sidebar.selectbox("Select a segment", options=segment_options_ordered)
@@ -137,6 +123,7 @@ if password == PASSWORD:
                 file_content = io.BytesIO(uploaded_file.getvalue())
                 filename = uploaded_file.name
                 
+                # Gather all find-replace pairs, including both sets of inputs
                 find_replace_pairs = [(find_str, replace_str) for segment in segment_replace_inputs.values() for find_str, replace_str in segment.items() if replace_str]
                 
                 for find_str, replace_str in company_replace_inputs.items():
@@ -145,6 +132,9 @@ if password == PASSWORD:
                 
                 if user_find and user_replace:
                     find_replace_pairs.append((user_find, user_replace))
+                
+                if second_find and second_replace:
+                    find_replace_pairs.append((second_find, second_replace))
                 
                 if filename.endswith('.docx'):
                     doc = Document(file_content)
@@ -173,4 +163,4 @@ if password == PASSWORD:
         else:
             st.error("Upload a File.")
 else:
-    st.warning("Please enter the password.")
+    st.warning("Please enter the correct password.")
