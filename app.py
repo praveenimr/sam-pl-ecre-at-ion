@@ -4,6 +4,20 @@ from pptx import Presentation
 import io
 import base64
 
+st.markdown(
+     """
+    <style>
+    header[data-testid="stHeader"] {
+        display: none;
+    }
+    .css-1u7wa8r.e1tzin5v3 {
+        display: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # Fetch password from Streamlit secrets
 PASSWORD = "imr solution"
 
